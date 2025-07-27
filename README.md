@@ -41,7 +41,7 @@ The launcher starts Genshin Impact in suspended mode, injects `Genshin.Fps.Unloc
    - The launcher starts the game suspended.
    - Injects the DLL using LoadLibrary.
    - Resumes the game.
-4. Use `Insert` key to toggle the in-game overlay.
+4. Use `Home` key to toggle the in-game overlay.
 
 ## ⚙️ Configuration
 
