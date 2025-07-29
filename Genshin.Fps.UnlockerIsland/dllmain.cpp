@@ -404,9 +404,11 @@ namespace GameHook
         return g_original_GameUpdate(a1, a2);
     }
 
-    int HookGet_FrameCount()
-    {
-        return 60;
+    int HookGet_FrameCount() {
+        int ret = g_original_HookGet_FrameCount();
+        if (ret >= 60) return 60;
+        else if (ret >= 45) return 45;
+        else if (ret >= 30) return 30;
     }
 
     __int64 HookChangeFOV(__int64 a1, float ChangeFovValue)
