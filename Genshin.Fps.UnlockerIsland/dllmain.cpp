@@ -16,7 +16,7 @@ struct Menu_T
     };
 
     int selected_fps = 60;
-    int fps_index = 1;
+    int fps_index = 2;
     float fov_value = 90.0f;
     bool enable_fps_override = false;
     bool enable_fov_override = false;
