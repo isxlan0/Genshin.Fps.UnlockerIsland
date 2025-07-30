@@ -6,6 +6,8 @@ struct Menu_T
 {
     bool showGui = true;
     bool show_fps = true;
+    int toggleKey = VK_HOME;
+    bool waitingForKey = false;
 
     enum class FpsCorner
     {
@@ -197,6 +199,21 @@ namespace Gui
         file.close();
     }
 
+    const char* GetKeyName(int vkCode) {
+        static char name[128] = "Unknown";
+        UINT scanCode = MapVirtualKeyA(vkCode, MAPVK_VK_TO_VSC);
+        switch (vkCode) {
+        case VK_LEFT: case VK_UP: case VK_RIGHT: case VK_DOWN:
+        case VK_PRIOR: case VK_NEXT: case VK_END: case VK_HOME:
+        case VK_INSERT: case VK_DELETE: case VK_DIVIDE: case VK_NUMLOCK:
+            scanCode |= 0x100; break;
+        }
+        if (GetKeyNameTextA(scanCode << 16, name, sizeof(name)) == 0) {
+            strcpy_s(name, "Unknown");
+        }
+        return name;
+    }
+
 
     CHAR RenderBuff[4096] = { 0 };
     HRESULT __stdcall HookedPresent(IDXGISwapChain* pSwapChain, UINT sync, UINT flags)
@@ -226,7 +243,7 @@ namespace Gui
         if (menu.showGui)
         {
 
-            ImGui::SetNextWindowSize(ImVec2(300, 660), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(300, 710), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
 
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse
@@ -239,8 +256,8 @@ namespace Gui
             ImGui::Begin("MainWindow", nullptr, window_flags);
             {
                 ImVec2 window_size = ImGui::GetWindowSize();
-                ImGui::SetCursorPosX((window_size.x - ImGui::CalcTextSize(u8"Game Tools 快捷键[Home]").x) * 0.5f);
-                ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), u8"Game Tools 快捷键[Home]");
+                ImGui::SetCursorPosX((window_size.x - ImGui::CalcTextSize(u8"Hello,Genshin Tools!").x) * 0.5f);
+                ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), u8"Hello,Genshin Tools!");
                 ImGui::Separator();
             }
 
@@ -304,7 +321,22 @@ namespace Gui
                 ImGui::Unindent();
             }
 
-            if (ImGui::CollapsingHeader(u8"设置配置", flags)) {
+            if (ImGui::CollapsingHeader(u8"菜单设置配置", flags)) {
+                ImGui::Text(u8"启动菜单快捷键: %s", GetKeyName(menu.toggleKey));
+                if (ImGui::Button(u8"修改快捷键")) {
+                    menu.waitingForKey = true;
+                }
+                if (menu.waitingForKey) {
+                    ImGui::Text(u8"请按需要设置的快捷键...");
+
+                    for (int key = 0x01; key <= 0xFE; ++key) {
+                        if (GetAsyncKeyState(key) & 0x8000) {
+                            menu.toggleKey = key;
+                            menu.waitingForKey = false;
+                            break;
+                        }
+                    }
+                }
                 if (ImGui::Button(u8"保存设置", ImVec2(138, 40)))
                 {
                     MenuSaveConfig("C:\\Users\\Genshin.Fps.UnlockerIsland.bin");
@@ -351,19 +383,12 @@ namespace Gui
     {
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
             return true;
-        if (msg == WM_KEYDOWN && wParam == VK_HOME)
+        if (msg == WM_KEYDOWN && wParam == menu.toggleKey)
         {
             menu.showGui = !menu.showGui;
         }
-
         return CallWindowProc(oWndProc, hWnd, msg, wParam, lParam);
     }
-}
-
-namespace Tool
-{
-
-
 }
 
 namespace GameHook
