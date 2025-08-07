@@ -24,6 +24,7 @@ struct Menu_T
     bool enable_fov_override = false;
     bool enable_display_fog_override = false;
     bool enable_Perspective_override = false;
+    bool enable_syncount_override = true;
 
 };
 std::vector<Menu_T::FpsCorner> selected_corners = { Menu_T::FpsCorner::TopLeft };
@@ -292,6 +293,8 @@ namespace Gui
 
                 ImGui::DragInt(u8"帧数数值", &menu.selected_fps, 1, 1, 1000, u8"%d FPS");
 
+                ImGui::Checkbox(u8"突破显示器帧数上限", &menu.enable_syncount_override);
+
                 ImGui::Checkbox(u8"启用视角 FOV 修改", &menu.enable_fov_override);
                 ImGui::DragFloat(u8"视角 FOV", &menu.fov_value, 0.1f, 30.0f, 150.0f, u8"%.1f°");
 
@@ -401,8 +404,11 @@ namespace GameHook
     typedef int(*HookGet_FrameCount_t)();
     HookGet_FrameCount_t g_original_HookGet_FrameCount = nullptr;
 
-    typedef int(*Set_FrameCount_t)(int a);
+    typedef int(*Set_FrameCount_t)(int value);
     Set_FrameCount_t g_original_Set_FrameCount = nullptr;
+
+    typedef int(*Set_SyncCount_t)(bool value);
+    Set_SyncCount_t g_original_Set_SyncCount = nullptr;
 
     typedef int(*HookChangeFOV_t)(__int64 a1, float a2);
     HookChangeFOV_t g_original_HookChangeFOV = nullptr;
@@ -424,6 +430,11 @@ namespace GameHook
         if (menu.enable_fps_override)
         {
             g_original_Set_FrameCount(menu.selected_fps);
+        }
+
+        if (menu.enable_syncount_override)
+        {
+            g_original_Set_SyncCount(false);
         }
 
         return g_original_GameUpdate(a1, a2);
@@ -478,14 +489,11 @@ namespace GameHook
             Sleep(1000);
         }
 
-        std::cout << "GameModule:" << hGameModule << std::endl;
-
         void* GameUpdateAddr = (void*)PatternScanner::Scan("E8 ? ? ? ? 48 8D 4C 24 ? 8B F8 FF 15 ? ? ? ? E8 ? ? ? ?");
         GameUpdateAddr = (void*)PatternScanner::ResolveRelativeAddress((uintptr_t)GameUpdateAddr);
         if (!GameUpdateAddr) {
             MessageBoxA(nullptr, "HookGameUpdate search failed!", "PatternScanner", MB_OK | MB_ICONERROR);
         }
-
         if (!MinHookManager::Add(GameUpdateAddr, &HookGameUpdate, (void**)&g_original_GameUpdate)) {
             MessageBoxA(nullptr, "HookGameUpdate install failed!", "MinHook", MB_OK | MB_ICONERROR);
         }
@@ -496,7 +504,6 @@ namespace GameHook
         if (!Get_FrameCountAddr) {
             MessageBoxA(nullptr, "HookGet_FrameCount search failed!", "PatternScanner", MB_OK | MB_ICONERROR);
         }
-
         if (!MinHookManager::Add(Get_FrameCountAddr, &HookGet_FrameCount, (void**)&g_original_HookGet_FrameCount)) {
             MessageBoxA(nullptr, "HookGet_FrameCount install failed!", "MinHook", MB_OK | MB_ICONERROR);
         }
@@ -508,6 +515,15 @@ namespace GameHook
             MessageBoxA(nullptr, "Set_FrameCountAddr search failed!", "PatternScanner", MB_OK | MB_ICONERROR);
         }
         g_original_Set_FrameCount = (Set_FrameCount_t)Set_FrameCountAddr;
+
+        void* Set_SyncCountAddr = (void*)PatternScanner::Scan("E8 ? ? ? ? E8 ? ? ? ? 89 C6 E8 ? ? ? ? 31 C9 89 F2 49 89 C0 E8 ? ? ? ? 48 89 C6 48 8B 0D ? ? ? ? 80 B9 ? ? ? ? ? 74 47 48 8B 3D ? ? ? ? 48 85 DF 74 4C ");
+        Set_SyncCountAddr = (void*)PatternScanner::ResolveRelativeAddress((uintptr_t)Set_SyncCountAddr);
+        if (!Set_SyncCountAddr) {
+            MessageBoxA(nullptr, "Set_SyncCountAddr search failed!", "PatternScanner", MB_OK | MB_ICONERROR);
+            exit(0);
+            ExitProcess(0);
+        }
+        g_original_Set_SyncCount = (Set_SyncCount_t)Set_SyncCountAddr;
 
         void* ChangeFOVAddr = (void*)PatternScanner::Scan("40 53 48 83 EC 60 0F 29 74 24 ? 48 8B D9 0F 28 F1 E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? E8 ? ? ? ? 48 8B C8 ");
         if (!ChangeFOVAddr) {
@@ -541,13 +557,10 @@ namespace GameHook
 DWORD WINAPI Run(LPVOID lpParam)
 {
     GameHook::InitHook();
-
     while (!GameHook::GameUpdateInit)
     {
         Sleep(1000);
     }
-
-
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, DefWindowProc, 0L, 0L,
         GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Genshin.Fps.UnlockerIslandWnd"), NULL };
     RegisterClassEx(&wc);
@@ -602,6 +615,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     }
     else if (ul_reason_for_call == DLL_PROCESS_DETACH)
     {
+        MinHookManager::DisableAllHooks();
         MH_Uninitialize();
     }
     return TRUE;
