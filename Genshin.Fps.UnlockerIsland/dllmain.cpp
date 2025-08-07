@@ -6,6 +6,7 @@ struct Menu_T
 {
     bool showGui = true;
     bool show_fps = true;
+    bool show_fps_use_floating_window = false;
     int toggleKey = VK_HOME;
     bool waitingForKey = false;
 
@@ -228,23 +229,48 @@ namespace Gui
 
         if (menu.show_fps)
         {
-            char buffer[64];
-            sprintf(buffer, "FPS: %.0f", ImGui::GetIO().Framerate);
-
-            ImDrawList* draw_list = ImGui::GetForegroundDrawList();
-            ImVec2 text_size = ImGui::CalcTextSize(buffer);
-
-            for (const auto& corner : selected_corners)
+            if (menu.show_fps_use_floating_window)
             {
-                ImVec2 pos = GetCornerPos(corner, text_size);
-                draw_list->AddText(pos, IM_COL32_WHITE, buffer);
+                static ImVec2 fps_window_pos = ImVec2(100, 100); // 初始位置，可记忆
+                ImGui::SetNextWindowBgAlpha(0.3f);               // 背景透明
+                ImGui::SetNextWindowSize(ImVec2(100, 40), ImGuiCond_Once); // 初始尺寸
+
+                if (!ImGui::IsAnyItemActive() && !ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+                    ImGui::SetNextWindowPos(fps_window_pos, ImGuiCond_FirstUseEver);
+
+                ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize |
+                    ImGuiWindowFlags_NoTitleBar |
+                    ImGuiWindowFlags_NoSavedSettings;
+
+                ImGui::Begin("FPS窗口", nullptr, flags);
+
+                ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+                if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                    fps_window_pos = ImGui::GetWindowPos(); // 记录拖动后的位置
+
+                ImGui::End();
             }
+            else
+            {
+                char buffer[64];
+                sprintf(buffer, "FPS: %.0f", ImGui::GetIO().Framerate);
+
+                ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+                ImVec2 text_size = ImGui::CalcTextSize(buffer);
+
+                for (const auto& corner : selected_corners)
+                {
+                    ImVec2 pos = GetCornerPos(corner, text_size);
+                    draw_list->AddText(pos, IM_COL32_WHITE, buffer);
+                }
+            }
+
         }
 
         if (menu.showGui)
         {
-
-            ImGui::SetNextWindowSize(ImVec2(300, 710), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(300, 780), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
 
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse
@@ -306,6 +332,7 @@ namespace Gui
             if (ImGui::CollapsingHeader(u8"帧数显示", flags))
             {
                 ImGui::Checkbox(u8"显示 FPS", &menu.show_fps);
+                ImGui::Checkbox(u8"使显示窗口可移动", &menu.show_fps_use_floating_window);
 
                 ImGui::Text(u8"显示位置:");
                 ImGui::Indent();
