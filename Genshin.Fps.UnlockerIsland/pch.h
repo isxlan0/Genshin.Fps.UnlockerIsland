@@ -10,6 +10,7 @@
 #include <tchar.h>
 #include <vector>
 #include <fstream>
+#include <Xinput.h>
 
 #include "PatternScanner.hpp"
 #include "MinHookManager.h"
@@ -22,5 +23,6 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "MinHook/lib/libMinHook.x64.lib")
+#pragma comment(lib, "Xinput.lib")
 
 #endif

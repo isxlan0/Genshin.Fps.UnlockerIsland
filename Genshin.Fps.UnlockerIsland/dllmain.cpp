@@ -40,6 +40,7 @@ namespace Gui
     typedef HRESULT(__stdcall* ResizeBuffers_t)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 
     LRESULT CALLBACK HookedWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void ControllerProc();
 
     WNDPROC oWndProc = nullptr;
     Present_t oPresent = nullptr;
@@ -220,6 +221,8 @@ namespace Gui
     CHAR RenderBuff[4096] = { 0 };
     HRESULT __stdcall HookedPresent(IDXGISwapChain* pSwapChain, UINT sync, UINT flags)
     {
+        ControllerProc();
+
         if (!g_ImGuiInitialized)
             InitImGui(pSwapChain);
 
@@ -411,6 +414,7 @@ namespace Gui
 
     LRESULT CALLBACK HookedWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
+
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
             return true;
         if (msg == WM_KEYDOWN && wParam == menu.toggleKey)
@@ -418,6 +422,42 @@ namespace Gui
             menu.showGui = !menu.showGui;
         }
         return CallWindowProc(oWndProc, hWnd, msg, wParam, lParam);
+    }
+    void ControllerProc()
+    {
+        XINPUT_STATE state;
+        if (XInputGetState(0, &state) == ERROR_SUCCESS)
+        {
+            // RB+LB+X+十字键上
+            bool rbPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
+            bool lbPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
+            bool xPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
+            bool dpadUpPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
+
+            static bool toggleComboPrev = false;
+            bool toggleComboNow = rbPressed && lbPressed && xPressed && dpadUpPressed;
+
+            if (toggleComboNow && !toggleComboPrev)
+            {
+                menu.showGui = !menu.showGui;
+            }
+            toggleComboPrev = toggleComboNow;
+
+            // RB+LB+X+十字键下
+            if (menu.showGui)
+            {
+                bool dpadDownPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+
+                static bool msgBoxComboPrev = false;
+                bool msgBoxComboNow = rbPressed && lbPressed && xPressed && dpadDownPressed;
+
+                if (msgBoxComboNow && !msgBoxComboPrev)
+                {
+                    MenuLoadConfig("C:\\Users\\Genshin.Fps.UnlockerIsland.bin");
+                }
+                msgBoxComboPrev = msgBoxComboNow;
+            }
+        }
     }
 }
 
